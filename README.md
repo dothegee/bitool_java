@@ -241,9 +241,208 @@ curl -X PUT http://localhost:8080/api/users/1 -H "Content-Type: application/json
 
 ---
 
-## 📊 9장. 앞으로 가야 할 길
+## 📊 9장~ 요약
 
 * ❌ 없는 사용자 삭제 DELETE API
 * 🚀 Swagger 또는 RestDocs 도입
 * 📈 BI 구조에 적합한 구조의 JSON 제공 API
 * ⌛ 실시간 검색을 위한 Scheduling + Caching 구성
+
+
+## 📊 9장. RadiationActivity API 구현
+
+> PostgreSQL의 `activcheckinfo` 테이블을 기반으로, 시간별 `calculatedact` 값을 조회하는 시계열 API를 구현합니다.
+
+#### ✅ Entity 생성
+
+```java
+@Entity
+@Table(name = "activcheckinfo")
+@Getter
+@Setter
+@NoArgsConstructor
+public class ActiveCheckInfo {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long number;
+    private String userid;
+    private LocalDateTime datetime;
+    private Double calculatedact;
+}
+```
+
+#### ✅ DTO
+
+```java
+public record ActiveCheckResponseDTO(
+    LocalDateTime datetime,
+    Double calculatedact
+) {}
+```
+
+#### ✅ Repository
+
+```java
+public interface ActiveCheckInfoRepository extends JpaRepository<ActiveCheckInfo, Long> {
+    List<ActiveCheckInfo> findByDatetimeBetweenOrderByDatetimeAsc(LocalDateTime start, LocalDateTime end);
+}
+```
+
+#### ✅ Service
+
+```java
+@Service
+@RequiredArgsConstructor
+public class ActiveCheckInfoService {
+    private final ActiveCheckInfoRepository repository;
+
+    @Cacheable(value = "radiationActivityCache", key = "#start.toString() + ':' + #end.toString()", unless = "#result == null || #result.isEmpty()")
+    public List<ActiveCheckResponseDTO> getDataBetween(LocalDateTime start, LocalDateTime end) {
+        System.out.println("\uD83D\uDCF1 DB에서 조회합니다: " + start + " ~ " + end);
+        return repository.findByDatetimeBetweenOrderByDatetimeAsc(start, end)
+                .stream()
+                .map(e -> new ActiveCheckResponseDTO(e.getDatetime(), e.getCalculatedact()))
+                .toList();
+    }
+}
+```
+
+#### ✅ Controller
+
+```java
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/radiation-activity")
+public class ActiveCheckInfoController {
+    private final ActiveCheckInfoService service;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<ActiveCheckResponseDTO>>> getActiveData(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
+    ) {
+        List<ActiveCheckResponseDTO> data = service.getDataBetween(start, end);
+        return ResponseEntity.ok()
+            .header("Content-Type", "application/json; charset=UTF-8")
+            .body(new ApiResponse<>("SUCCESS", "활성도 데이터 조회 성공", data));
+    }
+}
+```
+
+---
+
+## ⚙️ 10장. 캐시 설정 및 자동화
+
+#### ✅ application.properties 설정
+
+```properties
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+```
+
+#### ✅ @EnableCaching 등록
+
+```java
+@SpringBootApplication
+@EnableCaching
+public class BitoolApplication { ... }
+```
+
+#### ✅ 스케줄러 + 캐시 사전 적재
+
+```java
+@Component
+@RequiredArgsConstructor
+public class RadiationDataScheduler {
+    private final ActiveCheckInfoService service;
+
+    @Scheduled(cron = "0 0 * * * *") // 매 정각
+    public void preloadHourlyData() {
+        LocalDateTime now = LocalDateTime.now().withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime next = now.plusHours(1);
+        System.out.println("\u23F3 [스케줄러 실행] " + now + " ~ " + next);
+        service.getDataBetween(now, next);
+    }
+}
+```
+
+---
+
+## 🧹 11장. 캐시 TTL(Time-To-Live) 적용
+
+> 오래된 캐시 데이터를 자동 만료시키기 위한 커스텀 캐시 매니저 설정
+
+#### ✅ CacheConfig 설정
+
+```java
+@Configuration
+@EnableCaching
+public class CacheConfig {
+
+    @Bean
+    public CacheManager cacheManager() {
+        return new TTLCacheManager(30, TimeUnit.MINUTES); // TTL 30분
+    }
+
+    static class TTLCacheManager extends ConcurrentMapCacheManager {
+        private final long ttlMillis;
+
+        public TTLCacheManager(long duration, TimeUnit unit) {
+            this.ttlMillis = unit.toMillis(duration);
+        }
+
+        @Override
+        protected Cache createConcurrentMapCache(String name) {
+            return new TTLConcurrentMapCache(name, ttlMillis);
+        }
+    }
+
+    static class TTLConcurrentMapCache extends ConcurrentMapCache {
+        private final long ttlMillis;
+        private final ConcurrentMap<Object, Long> expireTimeMap = new ConcurrentHashMap<>();
+
+        public TTLConcurrentMapCache(String name, long ttlMillis) {
+            super(name);
+            this.ttlMillis = ttlMillis;
+        }
+
+        @Override
+        public void put(Object key, Object value) {
+            super.put(key, value);
+            expireTimeMap.put(key, System.currentTimeMillis() + ttlMillis);
+        }
+
+        @Override
+        public ValueWrapper get(Object key) {
+            if (!isValid(key)) {
+                evict(key);
+                return null;
+            }
+            return super.get(key);
+        }
+
+        private boolean isValid(Object key) {
+            return !expireTimeMap.containsKey(key) || expireTimeMap.get(key) >= System.currentTimeMillis();
+        }
+    }
+}
+```
+
+---
+
+## 🧹 12장. 캐시 자동 초기화 스케줄러
+
+```java
+@Component
+@Profile("prod") // 운영 환경에서만 실행
+public class ActiveCheckCacheCleaner {
+
+    @Scheduled(fixedDelay = 3600000) // 1시간마다 반복
+    @CacheEvict(value = "radiationActivityCache", allEntries = true)
+    public void clearCacheHourly() {
+        System.out.println("\uD83E\uDEB9 [캐시 초기화] radiationActivityCache 전체 삭제");
+    }
+}
+```
+
+> 🔄 스케줄러는 운영 환경에서만 작동하며, 캐시 TTL + 수동 삭제를 함께 사용할 수 있음.
