@@ -1,7 +1,6 @@
 package com.jinu.bitool.scheduler;
 
-import com.jinu.bitool.service.RadiationDataService;
-import lombok.RequiredArgsConstructor;
+import com.jinu.bitool.service.ActiveCheckInfoService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,11 +21,11 @@ public class RadiationDataScheduler {
 //        service.getDataBetween(now, nextHour); // ✅ 호출 시 캐시에 저장됨
 //    }
 
-    private final RadiationDataService service;
+    private final ActiveCheckInfoService service;
     private final boolean enabled;
 
     // ✅ 생성자 주입 + 설정 값 가져오기
-    public RadiationDataScheduler(RadiationDataService service,
+    public RadiationDataScheduler(ActiveCheckInfoService service,
                                   @Value("${scheduler.enabled:true}") boolean enabled) {
         this.service = service;
         this.enabled = enabled;
