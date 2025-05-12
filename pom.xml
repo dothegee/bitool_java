@@ -99,6 +99,11 @@
 			<version>2.2.0</version>
 		</dependency>
 
+		<!-- AOP -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
+		</dependency>
 	</dependencies>
 
 	<!-- Maven 빌드 시 사용할 플러그인 설정 -->

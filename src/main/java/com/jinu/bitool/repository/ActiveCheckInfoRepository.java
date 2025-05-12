@@ -16,4 +16,5 @@ public interface ActiveCheckInfoRepository extends JpaRepository<ActiveCheckInfo
     List<ActiveCheckInfo> findByDatetimeBetweenOrderByDatetimeAsc(
             LocalDateTime start, LocalDateTime end
     );
+
 }

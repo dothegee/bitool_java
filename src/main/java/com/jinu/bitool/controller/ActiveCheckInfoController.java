@@ -14,6 +14,9 @@ import java.util.List;
 // - URL 경로는 /api/radiation-activity
 // - GET 요청 시 start, end 시간 범위를 받아 해당 구간 데이터를 JSON 형태로 반환합니다.
 
+import lombok.extern.slf4j.Slf4j; // 로그 기록을 위해
+
+@Slf4j // 로그 기록을 위해
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/radiation-activity")
@@ -26,6 +29,7 @@ public class ActiveCheckInfoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
     ) {
+        log.info("🟢 [Controller] 측정값 요청 시작"); // 로그 기록  (요청 수신, 응답 반환, 입력 파라미터 확인)
         // ✅ Service 호출: 시간 범위 데이터를 조회
         List<ActiveCheckResponseDTO> data = service.getDataBetween(start, end);
 

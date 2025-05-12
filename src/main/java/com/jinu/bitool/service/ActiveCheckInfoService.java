@@ -3,11 +3,15 @@ package com.jinu.bitool.service;
 import com.jinu.bitool.dto.ActiveCheckResponseDTO;
 import com.jinu.bitool.repository.ActiveCheckInfoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+
+import lombok.extern.slf4j.Slf4j; // 로그 기록을 위해
 
 // ✅ 4. 비즈니스 로직 계층입니다.
 // - Repository에서 데이터를 가져오고 DTO로 변환하는 로직을 처리
@@ -27,6 +31,8 @@ import java.util.List;
 //                .toList();
 //    }
 //}
+
+@Slf4j // 로그 기록을 위해
 @Service
 @RequiredArgsConstructor
 public class ActiveCheckInfoService {
@@ -40,6 +46,7 @@ public class ActiveCheckInfoService {
     )
     public List<ActiveCheckResponseDTO> getDataBetween(LocalDateTime start, LocalDateTime end) {
         System.out.println("📡 DB에서 조회합니다: " + start + " ~ " + end); // ✅ 캐시 hit/miss 확인용 로그
+        log.info("📘 [Service] 날짜 범위 데이터 필터링 시작: {} ~ {}", start, end);
 
         return repository.findByDatetimeBetweenOrderByDatetimeAsc(start, end)
                 .stream()
