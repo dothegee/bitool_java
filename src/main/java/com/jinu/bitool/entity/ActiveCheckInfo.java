@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "activcheckinfo") // 실제 테이블명 명시 !!!!
+@Table(name = "visual_activity") // 실제 테이블명 명시 !!!!
 public class ActiveCheckInfo {
 
     @Id
@@ -26,4 +26,12 @@ public class ActiveCheckInfo {
     private LocalDateTime datetime; // ✅ 측정 시간 (X축 기준)
 
     private Double calculatedact; // ✅ 계산된 방사선량 수치 (Y축 기준)
+
+    private Double guide_activity; // python으로 계산한 액티비티
+
+    private Double upper_limit;
+
+    private Double lower_limit;
+
+    private int duration;
 }

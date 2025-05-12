@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
 
 public record ActiveCheckResponseDTO(
         LocalDateTime datetime,
-        Double calculatedact
+        Double calculatedact,
+        Double guide_activity,// python으로 계산한 액티비티
+        Double upper_limit,
+        Double lower_limit,
+        int duration
 ) {}
 

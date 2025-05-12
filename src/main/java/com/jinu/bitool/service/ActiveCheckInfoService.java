@@ -43,7 +43,13 @@ public class ActiveCheckInfoService {
 
         return repository.findByDatetimeBetweenOrderByDatetimeAsc(start, end)
                 .stream()
-                .map(e -> new ActiveCheckResponseDTO(e.getDatetime(), e.getCalculatedact()))
+                .map(e -> new ActiveCheckResponseDTO(
+                        e.getDatetime(),
+                        e.getCalculatedact(),
+                        e.getGuide_activity(),
+                        e.getUpper_limit(),
+                        e.getLower_limit(),
+                        e.getDuration()))
                 .toList();
     }
 }
