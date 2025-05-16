@@ -27,7 +27,7 @@
 * IntelliJ → New Project
 * Spring Boot 선택
 * Maven 설정
-* Java 24
+* Java 21
 * Dependencies:
 
     * Spring Web
